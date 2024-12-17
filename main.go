@@ -49,7 +49,7 @@ func main() {
 }
 
 func ScoutupMain(ctx *cli.Context, closeApp context.CancelCauseFunc) (cliapp.Lifecycle, error) {
-	config := deploy.BlockscoutConfig{
+	config1 := deploy.BlockscoutConfig{
 		Name:         "Potato Chain",
 		FrontendPort: 3001,
 		BackendPort:  4001,
@@ -57,7 +57,24 @@ func ScoutupMain(ctx *cli.Context, closeApp context.CancelCauseFunc) (cliapp.Lif
 		RpcUrl:       "http://host.docker.internal:8545/",
 		FirstBlock:   5,
 	}
+	config2 := deploy.BlockscoutConfig{
+		Name:         "Carrot Chain",
+		FrontendPort: 3002,
+		BackendPort:  4002,
+		PostgresPort: 7434,
+		RpcUrl:       "http://host.docker.internal:9545/",
+		FirstBlock:   1,
+	}
+	config3 := deploy.BlockscoutConfig{
+		Name:         "Tomato Chain",
+		FrontendPort: 3003,
+		BackendPort:  4003,
+		PostgresPort: 7435,
+		RpcUrl:       "http://host.docker.internal:9546/",
+		FirstBlock:   1,
+	}
+	configs := []deploy.BlockscoutConfig{config1, config2, config3}
 	log := oplog.NewLogger(oplog.AppOut(ctx), oplog.DefaultCLIConfig())
-	instance := deploy.NewBlockscout(log, closeApp, config)
-	return instance, nil
+	deployer := deploy.New(log, closeApp, configs)
+	return deployer, nil
 }

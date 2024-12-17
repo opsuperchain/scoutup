@@ -175,6 +175,9 @@ func (b *Blockscout) dockerComposeEnvs() []string {
 		fmt.Sprintf("FRONTEND_PORT=%d", b.config.FrontendPort),
 		fmt.Sprintf("BACKEND_PORT=%d", b.config.BackendPort),
 		fmt.Sprintf("POSTGRES_PORT=%d", b.config.PostgresPort),
+		fmt.Sprintf("DB_CONTAINER_NAME=%s", nameToContainerName("db", b.config.Name)),
+		fmt.Sprintf("BACKEND_CONTAINER_NAME=%s", nameToContainerName("backend", b.config.Name)),
+		fmt.Sprintf("FRONTEND_CONTAINER_NAME=%s", nameToContainerName("frontend", b.config.Name)),
 	}
 }
 

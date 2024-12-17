@@ -2,6 +2,7 @@ package deploy
 
 import (
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -30,4 +31,10 @@ func mergeMaps(maps ...map[string]string) map[string]string {
 		}
 	}
 	return merged
+}
+
+func nameToContainerName(prefix string, name string) string {
+	container_name := strings.ToLower(name)
+	container_name = strings.ReplaceAll(container_name, " ", "-")
+	return prefix + "-" + container_name
 }
