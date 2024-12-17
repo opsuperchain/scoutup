@@ -52,7 +52,9 @@ func ScoutupMain(ctx *cli.Context, closeApp context.CancelCauseFunc) (cliapp.Lif
 	config := deploy.BlockscoutConfig{
 		Name:         "Potato Chain",
 		FrontendPort: 3001,
-		RpcUrl:       "http://localhost:8545",
+		BackendPort:  4001,
+		PostgresPort: 7433,
+		RpcUrl:       "http://host.docker.internal:8545/",
 		FirstBlock:   5,
 	}
 	log := oplog.NewLogger(oplog.AppOut(ctx), oplog.DefaultCLIConfig())

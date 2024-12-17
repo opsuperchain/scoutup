@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path"
@@ -14,7 +15,7 @@ import (
 )
 
 const (
-	DockerComposeCommand = "docker-compose"
+	DockerComposeCommand = "docker compose"
 )
 
 var (
@@ -87,8 +88,8 @@ func (b *Blockscout) Stop(_ context.Context) error {
 	}
 
 	b.resourceCancel()
-	b.executeCleanup()
 	<-b.stoppedCh
+	b.executeCleanup()
 	return nil
 }
 
@@ -125,14 +126,17 @@ func (b *Blockscout) setupTempDir() (string, error) {
 
 func (b *Blockscout) configureBlockscout(tempDir string) error {
 	b.log.Info("Configuring Blockscout")
+	patchDotEnv(path.Join(tempDir, "common-blockscout.env"), b.backendEnvs())
+	patchDotEnv(path.Join(tempDir, "common-frontend.env"), b.frontendEnvs())
 	return nil
 }
 
 func (b *Blockscout) runDockerCompose(ctx context.Context, tempDir string) error {
 	b.log.Info("Starting Blockscout with docker-compose")
-	b.cmd = exec.CommandContext(b.resourceCtx, "docker-compose", "up")
+	b.cmd = exec.CommandContext(b.resourceCtx, "docker", "compose", "up")
+	b.cmd.Env = append(os.Environ(), b.dockerComposeEnvs()...)
 	b.cmd.Cancel = func() error {
-		return b.cmd.Process.Signal(syscall.SIGINT)
+		return b.cmd.Process.Signal(syscall.SIGTERM)
 	}
 	b.cmd.Dir = tempDir
 	go func() {
@@ -151,12 +155,46 @@ func (b *Blockscout) runDockerCompose(ctx context.Context, tempDir string) error
 			b.log.Info("blockscout terminated")
 		}
 
-		// If anvil stops, signal that the entire app should be closed
+		cmd := exec.Command("docker", "compose", "down")
+		cmd.Dir = tempDir
+		err := cmd.Run()
+		if err != nil {
+			b.log.Error("failed to stop blockscout", "error", err)
+		}
+
+		// If it stops, signal that the entire app should be closed
 		b.closeApp(nil)
 		b.stoppedCh <- struct{}{}
 	}()
 
 	return nil
+}
+
+func (b *Blockscout) dockerComposeEnvs() []string {
+	return []string{
+		fmt.Sprintf("FRONTEND_PORT=%d", b.config.FrontendPort),
+		fmt.Sprintf("BACKEND_PORT=%d", b.config.BackendPort),
+		fmt.Sprintf("POSTGRES_PORT=%d", b.config.PostgresPort),
+	}
+}
+
+func (b *Blockscout) backendEnvs() map[string]string {
+	envs := make(map[string]string)
+	envs["ETHEREUM_JSONRPC_HTTP_URL"] = b.config.RpcUrl
+	envs["ETHEREUM_JSONRPC_TRACE_URL"] = b.config.RpcUrl
+	envs["SUBNETWORK"] = b.config.Name
+	envs["FIRST_BLOCK"] = fmt.Sprintf("%d", b.config.FirstBlock)
+	envs["DATABASE_URL"] = fmt.Sprintf(
+		"postgresql://blockscout:ceWb1MeLBEeOIfk65gU8EjF8@host.docker.internal:%v/blockscout", b.config.PostgresPort)
+	return envs
+}
+
+func (b *Blockscout) frontendEnvs() map[string]string {
+	envs := make(map[string]string)
+	envs["NEXT_PUBLIC_API_PORT"] = fmt.Sprintf("%d", b.config.BackendPort)
+	envs["NEXT_PUBLIC_NETWORK_NAME"] = b.config.Name
+	envs["NEXT_PUBLIC_NETWORK_SHORT_NAME"] = b.config.Name
+	return envs
 }
 
 func (b *Blockscout) registerCleanupTask(task func()) {

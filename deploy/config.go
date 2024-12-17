@@ -1,8 +1,11 @@
 package deploy
 
 type BlockscoutConfig struct {
-	Name         string
+	Name       string
+	RpcUrl     string
+	FirstBlock uint64
+
 	FrontendPort uint64
-	RpcUrl       string
-	FirstBlock   uint64
+	BackendPort  uint64
+	PostgresPort uint64
 }
