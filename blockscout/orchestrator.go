@@ -2,6 +2,8 @@ package blockscout
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/AllFi/scoutup/config"
 	"github.com/ethereum/go-ethereum/log"
@@ -22,28 +24,42 @@ func NewOrchestrator(log log.Logger, closeApp context.CancelCauseFunc, configs [
 
 	instances := []*Instance{}
 	for _, config := range configs {
-		instance := NewInstance(log, closeApp, config, globalWorkspace)
+		instance, err := NewInstance(log, closeApp, config, globalWorkspace)
+		if err != nil {
+			return nil, err
+		}
 		instances = append(instances, instance)
 	}
 	return &Orchestrator{instances: instances, log: log, closeApp: closeApp}, nil
 }
 
-func (b *Orchestrator) Start(ctx context.Context) error {
-	for _, instance := range b.instances {
+func (o *Orchestrator) Start(ctx context.Context) error {
+	for _, instance := range o.instances {
 		if err := instance.Start(ctx); err != nil {
-			b.log.Error("Failed to start Blockscout instance", "err", err)
+			o.log.Error("Failed to start Blockscout instance", "err", err)
 			return err
 		}
+	}
+
+	o.log.Info(o.ConfigAsString())
+	return nil
+}
+
+func (o *Orchestrator) Stop(ctx context.Context) error {
+	for _, instance := range o.instances {
+		instance.Stop(ctx)
 	}
 	return nil
 }
 
-func (b *Orchestrator) Stop(ctx context.Context) error {
-	for _, instance := range b.instances {
-		instance.Stop(ctx)
+func (o *Orchestrator) ConfigAsString() string {
+	var b strings.Builder
+	fmt.Fprintln(&b, "\nBlockscout Config:")
+	fmt.Fprintln(&b, "------------------")
+	for _, instance := range o.instances {
+		fmt.Fprintln(&b, instance.ConfigAsString())
 	}
-	b.log.Info("Stopped ALL Blockscout instances")
-	return nil
+	return b.String()
 }
 
 // no-op dead code in the cliapp lifecycle

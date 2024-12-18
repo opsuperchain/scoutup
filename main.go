@@ -44,33 +44,27 @@ func main() {
 }
 
 func ScoutupMain(ctx *cli.Context, closeApp context.CancelCauseFunc) (cliapp.Lifecycle, error) {
-	config1 := config.BlockscoutConfig{
-		Name:         "Potato Chain",
-		FrontendPort: 3001,
-		BackendPort:  4001,
-		PostgresPort: 7433,
-		RpcUrl:       "http://host.docker.internal:8545/",
-		FirstBlock:   5,
+	network := config.NetworkConfig{
+		Chains: []*config.ChainConfig{
+			{
+				Name:       "Potato Chain",
+				RpcUrl:     "http://host.docker.internal:8545/",
+				FirstBlock: 5,
+			},
+			{
+				Name:       "Carrot Chain",
+				RpcUrl:     "http://host.docker.internal:9545/",
+				FirstBlock: 1,
+			},
+			{
+				Name:       "Tomato Chain",
+				RpcUrl:     "http://host.docker.internal:9546/",
+				FirstBlock: 1,
+			},
+		},
 	}
-	config2 := config.BlockscoutConfig{
-		Name:         "Carrot Chain",
-		FrontendPort: 3002,
-		BackendPort:  4002,
-		PostgresPort: 7434,
-		RpcUrl:       "http://host.docker.internal:9545/",
-		FirstBlock:   1,
-	}
-	config3 := config.BlockscoutConfig{
-		Name:         "Tomato Chain",
-		FrontendPort: 3003,
-		BackendPort:  4003,
-		PostgresPort: 7435,
-		RpcUrl:       "http://host.docker.internal:9546/",
-		FirstBlock:   1,
-	}
-	configs := []*config.BlockscoutConfig{&config1, &config2, &config3}
 	log := oplog.NewLogger(oplog.AppOut(ctx), oplog.DefaultCLIConfig())
-	return blockscout.NewOrchestrator(log, closeApp, configs)
+	return blockscout.NewOrchestrator(log, closeApp, network.GetBlockscoutConfigs())
 }
 
 func ScoutupClean(ctx *cli.Context) error {

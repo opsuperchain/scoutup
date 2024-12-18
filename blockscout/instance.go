@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 	"sync/atomic"
 	"syscall"
 
@@ -16,9 +17,9 @@ import (
 )
 
 type Instance struct {
-	config          *config.BlockscoutConfig
-	log             log.Logger
-	globalWorkspace string
+	config    *config.BlockscoutConfig
+	log       log.Logger
+	workspace string
 
 	cmd *exec.Cmd
 
@@ -30,33 +31,32 @@ type Instance struct {
 	stoppedCh chan struct{}
 }
 
-func NewInstance(log log.Logger, closeApp context.CancelCauseFunc, config *config.BlockscoutConfig, globalWorkspace string) *Instance {
+func NewInstance(log log.Logger, closeApp context.CancelCauseFunc, config *config.BlockscoutConfig, globalWorkspace string) (*Instance, error) {
 	resCtx, resCancel := context.WithCancel(context.Background())
-	return &Instance{
-		config:          config,
-		log:             log,
-		globalWorkspace: globalWorkspace,
-		resourceCtx:     resCtx,
-		resourceCancel:  resCancel,
-		closeApp:        closeApp,
-		stoppedCh:       make(chan struct{}, 1),
+	workspace, err := createInstanceWorkspace(globalWorkspace)
+	if err != nil {
+		return nil, err
 	}
+	return &Instance{
+		config:         config,
+		log:            log,
+		workspace:      workspace,
+		resourceCtx:    resCtx,
+		resourceCancel: resCancel,
+		closeApp:       closeApp,
+		stoppedCh:      make(chan struct{}, 1),
+	}, nil
 }
 
-func (b *Instance) Start(ctx context.Context) error {
-	b.log.Info("Starting Blockscout instance")
+func (i *Instance) Start(ctx context.Context) error {
+	i.log.Info("Starting Blockscout", "chain", i.config.Name)
 
-	tempDir, err := createInstanceWorkspace(b.globalWorkspace)
+	err := i.configureBlockscout()
 	if err != nil {
 		return err
 	}
 
-	err = b.configureBlockscout(tempDir)
-	if err != nil {
-		return err
-	}
-
-	err = b.runDockerCompose(ctx, tempDir)
+	err = i.runDockerCompose(ctx)
 	if err != nil {
 		return err
 	}
@@ -64,97 +64,106 @@ func (b *Instance) Start(ctx context.Context) error {
 	return nil
 }
 
-func (b *Instance) Stop(_ context.Context) error {
-	b.log.Info("Stopping Blockscout instance")
-	if b.stopped.Load() {
+func (i *Instance) Stop(_ context.Context) error {
+	i.log.Info("Stopping Blockscout", "chain", i.config.Name)
+	if i.stopped.Load() {
 		return errors.New("already stopped")
 	}
-	if !b.stopped.CompareAndSwap(false, true) {
+	if !i.stopped.CompareAndSwap(false, true) {
 		return nil // someone else stopped
 	}
 
-	b.resourceCancel()
-	<-b.stoppedCh
+	i.resourceCancel()
+	<-i.stoppedCh
 	return nil
 }
 
 // no-op dead code in the cliapp lifecycle
-func (b *Instance) Stopped() bool {
+func (i *Instance) Stopped() bool {
 	return false
 }
 
-func (b *Instance) configureBlockscout(tempDir string) error {
-	b.log.Info("Configuring Blockscout")
-	utils.PatchDotEnv(path.Join(tempDir, "common-blockscout.env"), b.backendEnvs())
-	utils.PatchDotEnv(path.Join(tempDir, "common-frontend.env"), b.frontendEnvs())
+func (i *Instance) ConfigAsString() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "* Chain: %v\n", i.config.Name)
+	fmt.Fprintf(&b, "         Frontend:  http://127.0.0.1:%v\n", i.config.FrontendPort)
+	fmt.Fprintf(&b, "         Backend:   http://127.0.0.1:%v\n", i.config.BackendPort)
+	fmt.Fprintf(&b, "         DB:        http://127.0.0.1:%v\n", i.config.PostgresPort)
+	fmt.Fprintf(&b, "         Workspace: %v\n", i.workspace)
+	return b.String()
+}
+
+func (i *Instance) configureBlockscout() error {
+	utils.PatchDotEnv(path.Join(i.workspace, "common-blockscout.env"), i.backendEnvs())
+	utils.PatchDotEnv(path.Join(i.workspace, "common-frontend.env"), i.frontendEnvs())
 	return nil
 }
 
-func (b *Instance) runDockerCompose(ctx context.Context, tempDir string) error {
-	b.log.Info("Starting Blockscout with docker-compose")
-	b.cmd = exec.CommandContext(b.resourceCtx, "docker", "compose", "up")
-	b.cmd.Env = append(os.Environ(), b.dockerComposeEnvs()...)
-	b.cmd.Cancel = func() error {
-		return b.cmd.Process.Signal(syscall.SIGTERM)
+func (i *Instance) runDockerCompose(ctx context.Context) error {
+	i.cmd = exec.CommandContext(i.resourceCtx, "docker", "compose", "up")
+	i.cmd.Env = append(os.Environ(), i.dockerComposeEnvs()...)
+	i.cmd.Cancel = func() error {
+		return i.cmd.Process.Signal(syscall.SIGTERM)
 	}
-	b.cmd.Dir = tempDir
+	i.cmd.Dir = i.workspace
 	go func() {
 		<-ctx.Done()
-		b.resourceCancel()
+		i.resourceCancel()
 	}()
 
-	if err := b.cmd.Start(); err != nil {
+	if err := i.cmd.Start(); err != nil {
 		return err
 	}
 
 	go func() {
-		if err := b.cmd.Wait(); err != nil {
+		if err := i.cmd.Wait(); err != nil {
 			if err.Error() != "exit status 130" {
-				b.log.Error("blockscout terminated with an error", "error", err)
+				i.log.Error("Blockscout terminated with an error", "error", err)
 			}
 		} else {
-			b.log.Info("blockscout terminated")
+			i.log.Info("Blockscout terminated")
 		}
 
-		err := cleanupInstanceWorkspace(tempDir)
+		err := cleanupInstanceWorkspace(i.workspace)
 		if err != nil {
-			b.log.Error("Failed to cleanup workspace", "error", err)
+			i.log.Error("Failed to cleanup workspace", "error", err)
 		}
 
 		// If it stops, signal that the entire app should be closed
-		b.closeApp(nil)
-		b.stoppedCh <- struct{}{}
+		i.closeApp(nil)
+		i.stoppedCh <- struct{}{}
 	}()
 
 	return nil
 }
 
-func (b *Instance) dockerComposeEnvs() []string {
+func (i *Instance) dockerComposeEnvs() []string {
 	return []string{
-		fmt.Sprintf("FRONTEND_PORT=%d", b.config.FrontendPort),
-		fmt.Sprintf("BACKEND_PORT=%d", b.config.BackendPort),
-		fmt.Sprintf("POSTGRES_PORT=%d", b.config.PostgresPort),
-		fmt.Sprintf("DB_CONTAINER_NAME=%s", utils.NameToContainerName("db", b.config.Name)),
-		fmt.Sprintf("BACKEND_CONTAINER_NAME=%s", utils.NameToContainerName("backend", b.config.Name)),
-		fmt.Sprintf("FRONTEND_CONTAINER_NAME=%s", utils.NameToContainerName("frontend", b.config.Name)),
+		fmt.Sprintf("DOCKER_REPO=%s", i.config.DockerRepo),
+		fmt.Sprintf("FRONTEND_PORT=%d", i.config.FrontendPort),
+		fmt.Sprintf("BACKEND_PORT=%d", i.config.BackendPort),
+		fmt.Sprintf("POSTGRES_PORT=%d", i.config.PostgresPort),
+		fmt.Sprintf("DB_CONTAINER_NAME=%s", utils.NameToContainerName("db", i.config.Name)),
+		fmt.Sprintf("BACKEND_CONTAINER_NAME=%s", utils.NameToContainerName("backend", i.config.Name)),
+		fmt.Sprintf("FRONTEND_CONTAINER_NAME=%s", utils.NameToContainerName("frontend", i.config.Name)),
 	}
 }
 
-func (b *Instance) backendEnvs() map[string]string {
+func (i *Instance) backendEnvs() map[string]string {
 	envs := make(map[string]string)
-	envs["ETHEREUM_JSONRPC_HTTP_URL"] = b.config.RpcUrl
-	envs["ETHEREUM_JSONRPC_TRACE_URL"] = b.config.RpcUrl
-	envs["SUBNETWORK"] = b.config.Name
-	envs["FIRST_BLOCK"] = fmt.Sprintf("%d", b.config.FirstBlock)
+	envs["ETHEREUM_JSONRPC_HTTP_URL"] = i.config.RpcUrl
+	envs["ETHEREUM_JSONRPC_TRACE_URL"] = i.config.RpcUrl
+	envs["SUBNETWORK"] = i.config.Name
+	envs["FIRST_BLOCK"] = fmt.Sprintf("%d", i.config.FirstBlock)
 	envs["DATABASE_URL"] = fmt.Sprintf(
-		"postgresql://blockscout:ceWb1MeLBEeOIfk65gU8EjF8@host.docker.internal:%v/blockscout", b.config.PostgresPort)
+		"postgresql://blockscout:ceWb1MeLBEeOIfk65gU8EjF8@host.docker.internal:%v/blockscout", i.config.PostgresPort)
 	return envs
 }
 
-func (b *Instance) frontendEnvs() map[string]string {
+func (i *Instance) frontendEnvs() map[string]string {
 	envs := make(map[string]string)
-	envs["NEXT_PUBLIC_API_PORT"] = fmt.Sprintf("%d", b.config.BackendPort)
-	envs["NEXT_PUBLIC_NETWORK_NAME"] = b.config.Name
-	envs["NEXT_PUBLIC_NETWORK_SHORT_NAME"] = b.config.Name
+	envs["NEXT_PUBLIC_API_PORT"] = fmt.Sprintf("%d", i.config.BackendPort)
+	envs["NEXT_PUBLIC_NETWORK_NAME"] = i.config.Name
+	envs["NEXT_PUBLIC_NETWORK_SHORT_NAME"] = i.config.Name
 	return envs
 }

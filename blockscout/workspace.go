@@ -47,9 +47,10 @@ func CleanupGlobalWorkspace(log log.Logger) error {
 
 	for _, workspace := range instanceWorkspaces {
 		if workspace.IsDir() {
+			log.Info("Cleaning up instance workspace", "workspace", workspace.Name())
 			err := cleanupInstanceWorkspace(filepath.Join(globalWorkspace, workspace.Name()))
 			if err != nil {
-				log.Error("Failed to cleanup instance workspace", "workspace", workspace, "error", err)
+				log.Error("Failed to cleanup instance workspace", "workspace", workspace.Name(), "error", err)
 			}
 		}
 	}
@@ -88,12 +89,12 @@ func cleanupInstanceWorkspace(dir string) error {
 	cmd.Dir = dir
 	err = cmd.Run()
 	if err != nil {
-		return fmt.Errorf("Failed to run docker compose down: %w", err)
+		return fmt.Errorf("Failed to remove docker containers: %w", err)
 	}
 
 	err = os.RemoveAll(dir)
 	if err != nil {
-		return fmt.Errorf("Failed to remove directory: %w", err)
+		return fmt.Errorf("Failed to clean directory: %w", err)
 	}
 
 	return nil
