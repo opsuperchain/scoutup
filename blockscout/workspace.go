@@ -101,7 +101,7 @@ func cleanupInstanceWorkspace(dir string) error {
 }
 
 func checkWorkspace(dir string) error {
-	expected := []string{"docker-compose.yml", "common-blockscout.env", "common-frontend.env"}
+	expected := []string{"docker-compose.yml", "common-blockscout.env", "common-frontend.env", "logs"}
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {

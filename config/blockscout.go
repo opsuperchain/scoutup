@@ -1,6 +1,8 @@
 package config
 
 type OPConfig struct {
+	L1RpcUrl               string
+	L1SystemConfigContract string
 }
 
 type ChainConfig struct {

@@ -1,6 +1,7 @@
 package blockscout
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -32,11 +33,11 @@ type Instance struct {
 }
 
 func NewInstance(log log.Logger, closeApp context.CancelCauseFunc, config *config.BlockscoutConfig, globalWorkspace string) (*Instance, error) {
-	resCtx, resCancel := context.WithCancel(context.Background())
 	workspace, err := createInstanceWorkspace(globalWorkspace)
 	if err != nil {
 		return nil, err
 	}
+	resCtx, resCancel := context.WithCancel(context.Background())
 	return &Instance{
 		config:         config,
 		log:            log,
@@ -90,6 +91,7 @@ func (i *Instance) ConfigAsString() string {
 	fmt.Fprintf(&b, "         Backend:   http://127.0.0.1:%v\n", i.config.BackendPort)
 	fmt.Fprintf(&b, "         DB:        http://127.0.0.1:%v\n", i.config.PostgresPort)
 	fmt.Fprintf(&b, "         Workspace: %v\n", i.workspace)
+	fmt.Fprintf(&b, "         Logs:	    %v\n", path.Join(i.workspace, "logs"))
 	return b.String()
 }
 
@@ -109,6 +111,26 @@ func (i *Instance) runDockerCompose(ctx context.Context) error {
 	go func() {
 		<-ctx.Done()
 		i.resourceCancel()
+	}()
+
+	stdout, err := i.cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+
+	logFile, err := os.Create(path.Join(i.workspace, "logs"))
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			txt := scanner.Text()
+			if _, err := fmt.Fprintln(logFile, txt); err != nil {
+				i.log.Warn("err piping stdout to log file", "err", err)
+			}
+		}
 	}()
 
 	if err := i.cmd.Start(); err != nil {
@@ -157,6 +179,12 @@ func (i *Instance) backendEnvs() map[string]string {
 	envs["FIRST_BLOCK"] = fmt.Sprintf("%d", i.config.FirstBlock)
 	envs["DATABASE_URL"] = fmt.Sprintf(
 		"postgresql://blockscout:ceWb1MeLBEeOIfk65gU8EjF8@host.docker.internal:%v/blockscout", i.config.PostgresPort)
+	if i.config.OPConfig != nil {
+		envs["INDEXER_OPTIMISM_L1_RPC"] = i.config.OPConfig.L1RpcUrl
+		envs["INDEXER_OPTIMISM_L1_SYSTEM_CONFIG_CONTRACT"] = i.config.OPConfig.L1SystemConfigContract
+		envs["INDEXER_OPTIMISM_L2_BATCH_GENESIS_BLOCK_NUMBER"] = "0"
+		envs["INDEXER_OPTIMISM_L2_HOLOCENE_TIMESTAMP"] = "0"
+	}
 	return envs
 }
 
@@ -165,5 +193,13 @@ func (i *Instance) frontendEnvs() map[string]string {
 	envs["NEXT_PUBLIC_API_PORT"] = fmt.Sprintf("%d", i.config.BackendPort)
 	envs["NEXT_PUBLIC_NETWORK_NAME"] = i.config.Name
 	envs["NEXT_PUBLIC_NETWORK_SHORT_NAME"] = i.config.Name
+
+	if i.config.OPConfig != nil {
+		envs["NEXT_PUBLIC_ROLLUP_TYPE"] = "optimistic"
+		// TODO: Fix me
+		envs["NEXT_PUBLIC_ROLLUP_L1_BASE_URL"] = "http://host.docker.internal:8545"
+		envs["NEXT_PUBLIC_ROLLUP_L2_WITHDRAWAL_URL"] = "https://app.optimism.io/bridge/withdraw"
+	}
+
 	return envs
 }

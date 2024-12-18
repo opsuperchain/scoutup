@@ -32,7 +32,7 @@ func main() {
 	app.Commands = []*cli.Command{
 		{
 			Name:   "clean",
-			Usage:  "Clean up all all containers and temporary files",
+			Usage:  "Cleans up all containers and temporary files",
 			Action: ScoutupClean,
 		},
 	}
@@ -47,19 +47,27 @@ func ScoutupMain(ctx *cli.Context, closeApp context.CancelCauseFunc) (cliapp.Lif
 	network := config.NetworkConfig{
 		Chains: []*config.ChainConfig{
 			{
-				Name:       "Potato Chain",
+				Name:       "L1",
 				RpcUrl:     "http://host.docker.internal:8545/",
-				FirstBlock: 5,
+				FirstBlock: 0,
 			},
 			{
-				Name:       "Carrot Chain",
+				Name:       "OPChainA",
 				RpcUrl:     "http://host.docker.internal:9545/",
-				FirstBlock: 1,
+				FirstBlock: 0,
+				OPConfig: &config.OPConfig{
+					L1RpcUrl:               "http://host.docker.internal:8545/",
+					L1SystemConfigContract: "0xFD19a33F8D757b8EA93BB2b40B1cDe946C1e1F4D",
+				},
 			},
 			{
-				Name:       "Tomato Chain",
+				Name:       "OPChainB",
 				RpcUrl:     "http://host.docker.internal:9546/",
-				FirstBlock: 1,
+				FirstBlock: 0,
+				OPConfig: &config.OPConfig{
+					L1RpcUrl:               "http://host.docker.internal:8545/",
+					L1SystemConfigContract: "0xFb295Aa436F23BE2Bd17678Adf1232bdec02FED1",
+				},
 			},
 		},
 	}
