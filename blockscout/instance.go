@@ -92,6 +92,11 @@ func (i *Instance) ConfigAsString() string {
 	fmt.Fprintf(&b, "         DB:        http://127.0.0.1:%v\n", i.config.PostgresPort)
 	fmt.Fprintf(&b, "         Workspace: %v\n", i.workspace)
 	fmt.Fprintf(&b, "         Logs:	    %v\n", path.Join(i.workspace, "logs"))
+
+	if i.config.OPConfig != nil {
+		fmt.Fprintf(&b, "         Optimism L1 RPC: %v\n", i.config.OPConfig.L1RpcUrl)
+		fmt.Fprintf(&b, "         Optimism L1 System Config Contract: %v\n", i.config.OPConfig.L1SystemConfigContract)
+	}
 	return b.String()
 }
 

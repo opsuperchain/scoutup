@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/AllFi/scoutup/blockscout"
-	"github.com/AllFi/scoutup/config"
+	"github.com/AllFi/scoutup/supersim"
 	"github.com/ethereum-optimism/optimism/op-service/cliapp"
 	"github.com/ethereum-optimism/optimism/op-service/ctxinterrupt"
 	oplog "github.com/ethereum-optimism/optimism/op-service/log"
@@ -44,35 +44,40 @@ func main() {
 }
 
 func ScoutupMain(ctx *cli.Context, closeApp context.CancelCauseFunc) (cliapp.Lifecycle, error) {
-	network := config.NetworkConfig{
-		Chains: []*config.ChainConfig{
-			{
-				Name:       "L1",
-				RpcUrl:     "http://host.docker.internal:8545/",
-				FirstBlock: 0,
-			},
-			{
-				Name:       "OPChainA",
-				RpcUrl:     "http://host.docker.internal:9545/",
-				FirstBlock: 0,
-				OPConfig: &config.OPConfig{
-					L1RpcUrl:               "http://host.docker.internal:8545/",
-					L1SystemConfigContract: "0xFD19a33F8D757b8EA93BB2b40B1cDe946C1e1F4D",
-				},
-			},
-			{
-				Name:       "OPChainB",
-				RpcUrl:     "http://host.docker.internal:9546/",
-				FirstBlock: 0,
-				OPConfig: &config.OPConfig{
-					L1RpcUrl:               "http://host.docker.internal:8545/",
-					L1SystemConfigContract: "0xFb295Aa436F23BE2Bd17678Adf1232bdec02FED1",
-				},
-			},
-		},
+	// network := config.NetworkConfig{
+	// 	Chains: []*config.ChainConfig{
+	// 		{
+	// 			Name:       "L1",
+	// 			RpcUrl:     "http://host.docker.internal:8545/",
+	// 			FirstBlock: 0,
+	// 		},
+	// 		{
+	// 			Name:       "OPChainA",
+	// 			RpcUrl:     "http://host.docker.internal:9545/",
+	// 			FirstBlock: 0,
+	// 			OPConfig: &config.OPConfig{
+	// 				L1RpcUrl:               "http://host.docker.internal:8545/",
+	// 				L1SystemConfigContract: "0xFD19a33F8D757b8EA93BB2b40B1cDe946C1e1F4D",
+	// 			},
+	// 		},
+	// 		{
+	// 			Name:       "OPChainB",
+	// 			RpcUrl:     "http://host.docker.internal:9546/",
+	// 			FirstBlock: 0,
+	// 			OPConfig: &config.OPConfig{
+	// 				L1RpcUrl:               "http://host.docker.internal:8545/",
+	// 				L1SystemConfigContract: "0xFb295Aa436F23BE2Bd17678Adf1232bdec02FED1",
+	// 			},
+	// 		},
+	// 	},
+	// }
+
+	config, err := supersim.GenerateConfigForSupersim("http://127.0.0.1:8420")
+	if err != nil {
+		return nil, err
 	}
 	log := oplog.NewLogger(oplog.AppOut(ctx), oplog.DefaultCLIConfig())
-	return blockscout.NewOrchestrator(log, closeApp, network.GetBlockscoutConfigs())
+	return blockscout.NewOrchestrator(log, closeApp, config.GetBlockscoutConfigs())
 }
 
 func ScoutupClean(ctx *cli.Context) error {
