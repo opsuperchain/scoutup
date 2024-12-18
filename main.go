@@ -7,7 +7,8 @@ import (
 	"context"
 	"os"
 
-	"github.com/AllFi/scoutup/deploy"
+	"github.com/AllFi/scoutup/blockscout"
+	"github.com/AllFi/scoutup/config"
 	"github.com/ethereum-optimism/optimism/op-service/cliapp"
 	"github.com/ethereum-optimism/optimism/op-service/ctxinterrupt"
 	oplog "github.com/ethereum-optimism/optimism/op-service/log"
@@ -27,20 +28,14 @@ func main() {
 	// Vanilla mode has no specific flags for now
 	//app.Flags = baseFlags
 
-	// Subcommands
-	// app.Commands = []*cli.Command{
-	// 	{
-	// 		Name:   config.ForkCommandName,
-	// 		Usage:  "Locally fork a network in the superchain registry",
-	// 		Flags:  append(config.ForkCLIFlags(envVarPrefix), baseFlags...),
-	// 		Action: cliapp.LifecycleCmd(SupersimMain),
-	// 	},
-	// 	{
-	// 		Name:   config.DocsCommandName,
-	// 		Usage:  "Display available docs links",
-	// 		Action: cliapp.LifecycleCmd(ScoutupMain),
-	// 	},
-	// }
+	//Subcommands
+	app.Commands = []*cli.Command{
+		{
+			Name:   "clean",
+			Usage:  "Clean up all all containers and temporary files",
+			Action: ScoutupClean,
+		},
+	}
 
 	ctx := ctxinterrupt.WithSignalWaiterMain(context.Background())
 	if err := app.RunContext(ctx, os.Args); err != nil {
@@ -49,7 +44,7 @@ func main() {
 }
 
 func ScoutupMain(ctx *cli.Context, closeApp context.CancelCauseFunc) (cliapp.Lifecycle, error) {
-	config1 := deploy.BlockscoutConfig{
+	config1 := config.BlockscoutConfig{
 		Name:         "Potato Chain",
 		FrontendPort: 3001,
 		BackendPort:  4001,
@@ -57,7 +52,7 @@ func ScoutupMain(ctx *cli.Context, closeApp context.CancelCauseFunc) (cliapp.Lif
 		RpcUrl:       "http://host.docker.internal:8545/",
 		FirstBlock:   5,
 	}
-	config2 := deploy.BlockscoutConfig{
+	config2 := config.BlockscoutConfig{
 		Name:         "Carrot Chain",
 		FrontendPort: 3002,
 		BackendPort:  4002,
@@ -65,7 +60,7 @@ func ScoutupMain(ctx *cli.Context, closeApp context.CancelCauseFunc) (cliapp.Lif
 		RpcUrl:       "http://host.docker.internal:9545/",
 		FirstBlock:   1,
 	}
-	config3 := deploy.BlockscoutConfig{
+	config3 := config.BlockscoutConfig{
 		Name:         "Tomato Chain",
 		FrontendPort: 3003,
 		BackendPort:  4003,
@@ -73,8 +68,12 @@ func ScoutupMain(ctx *cli.Context, closeApp context.CancelCauseFunc) (cliapp.Lif
 		RpcUrl:       "http://host.docker.internal:9546/",
 		FirstBlock:   1,
 	}
-	configs := []deploy.BlockscoutConfig{config1, config2, config3}
+	configs := []*config.BlockscoutConfig{&config1, &config2, &config3}
 	log := oplog.NewLogger(oplog.AppOut(ctx), oplog.DefaultCLIConfig())
-	deployer := deploy.New(log, closeApp, configs)
-	return deployer, nil
+	return blockscout.NewOrchestrator(log, closeApp, configs)
+}
+
+func ScoutupClean(ctx *cli.Context) error {
+	log := oplog.NewLogger(oplog.AppOut(ctx), oplog.DefaultCLIConfig())
+	return blockscout.CleanupGlobalWorkspace(log)
 }

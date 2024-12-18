@@ -1,4 +1,4 @@
-package deploy
+package config
 
 type BlockscoutConfig struct {
 	Name       string

@@ -1,4 +1,4 @@
-package deploy
+package utils
 
 import (
 	"os"
@@ -7,7 +7,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func patchDotEnv(path string, envs map[string]string) error {
+func PatchDotEnv(path string, envs map[string]string) error {
 	dotEnv, err := os.Open(path)
 	if err != nil {
 		return err
@@ -33,7 +33,7 @@ func mergeMaps(maps ...map[string]string) map[string]string {
 	return merged
 }
 
-func nameToContainerName(prefix string, name string) string {
+func NameToContainerName(prefix string, name string) string {
 	container_name := strings.ToLower(name)
 	container_name = strings.ReplaceAll(container_name, " ", "-")
 	return prefix + "-" + container_name
