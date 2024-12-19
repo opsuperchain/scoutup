@@ -12,29 +12,41 @@ func PrepareSupersimConfig(admingRPCUrl string) (*NetworkConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	println(sc)
+
+	l1Config := &ChainConfig{
+		Name:   sc.L1Config.Name,
+		RPCUrl: fmt.Sprintf("http://host.docker.internal:%d", sc.L1Config.Port),
+	}
+	if sc.L1Config.ForkConfig != nil && sc.L1Config.ForkConfig.BlockNumber > 0 {
+		l1Config.FirstBlock = sc.L1Config.ForkConfig.BlockNumber
+	}
 
 	networkConfig := &NetworkConfig{
 		Chains: []*ChainConfig{
-			{
-				Name:       sc.L1Config.Name,
-				RPCUrl:     fmt.Sprintf("http://host.docker.internal:%d", sc.L1Config.Port),
-				FirstBlock: 0, // TODO: fix me
-			},
+			l1Config,
 		},
 	}
 
 	for i, chain := range sc.L2Configs {
-		chainConfig := &ChainConfig{
-			Name:       chain.Name,
-			RPCUrl:     fmt.Sprintf("http://host.docker.internal:%d", sc.L2StartingPort+uint64(i)), // TODO: fix me
-			FirstBlock: 0,
+		port := sc.L2StartingPort + uint64(i)
+		if chain.Port > 0 {
+			port = chain.Port
+		}
+
+		l2Config := &ChainConfig{
+			Name:   chain.Name,
+			RPCUrl: fmt.Sprintf("http://host.docker.internal:%d", port),
 			OPConfig: &OPConfig{
 				L1RPCUrl:               fmt.Sprintf("http://host.docker.internal:%d", sc.L1Config.Port),
 				L1SystemConfigContract: chain.L2Config.L1Addresses.SystemConfigProxy.String(),
 			},
 		}
-		networkConfig.Chains = append(networkConfig.Chains, chainConfig)
+
+		if chain.ForkConfig != nil && chain.ForkConfig.BlockNumber > 0 {
+			l2Config.FirstBlock = chain.ForkConfig.BlockNumber
+		}
+
+		networkConfig.Chains = append(networkConfig.Chains, l2Config)
 	}
 
 	return networkConfig, nil

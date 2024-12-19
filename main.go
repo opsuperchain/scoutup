@@ -50,6 +50,10 @@ func ScoutupMain(ctx *cli.Context, closeApp context.CancelCauseFunc) (cliapp.Lif
 	} else {
 		networkConfig = config.PrepareDefaultAnvilConfig()
 	}
+	networkConfig.StartingFrontendPort = ctx.Uint64(config.StartingFrontendPort)
+	networkConfig.StartingBackendPort = ctx.Uint64(config.StartingBackendPort)
+	networkConfig.StartingPostgresPort = ctx.Uint64(config.StartingPostgresPort)
+
 	log := oplog.NewLogger(oplog.AppOut(ctx), oplog.DefaultCLIConfig())
 	return blockscout.NewOrchestrator(log, closeApp, networkConfig.GetBlockscoutConfigs())
 }

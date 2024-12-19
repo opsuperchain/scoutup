@@ -1,8 +1,11 @@
 package config
 
+import "fmt"
+
 type OPConfig struct {
 	L1RPCUrl               string
 	L1SystemConfigContract string
+	L1BlockscoutURL        string
 }
 
 type ChainConfig struct {
@@ -32,9 +35,9 @@ type NetworkConfig struct {
 }
 
 func (n *NetworkConfig) GetBlockscoutConfigs() []*BlockscoutConfig {
-	frontendPort := n.startingFrontendPort()
-	backendPort := n.startingBackendPort()
-	postgresPort := n.startingPostgresPort()
+	frontendPort := n.StartingFrontendPort
+	backendPort := n.StartingBackendPort
+	postgresPort := n.StartingPostgresPort
 
 	configs := []*BlockscoutConfig{}
 	for _, chain := range n.Chains {
@@ -47,33 +50,23 @@ func (n *NetworkConfig) GetBlockscoutConfigs() []*BlockscoutConfig {
 				DockerRepo:   chain.dockerRepo(),
 			},
 		}
+
+		if config.OPConfig != nil {
+			// TODO: refactor this later
+			for _, bs := range configs {
+				if bs.RPCUrl == config.OPConfig.L1RPCUrl {
+					config.OPConfig.L1BlockscoutURL = fmt.Sprintf("http://host.docker.internal:%v", bs.FrontendPort)
+					break
+				}
+			}
+		}
+
 		configs = append(configs, config)
 		frontendPort++
 		backendPort++
 		postgresPort++
 	}
 	return configs
-}
-
-func (n *NetworkConfig) startingFrontendPort() uint64 {
-	if n.StartingFrontendPort == uint64(0) {
-		return 3000
-	}
-	return n.StartingFrontendPort
-}
-
-func (n *NetworkConfig) startingBackendPort() uint64 {
-	if n.StartingBackendPort == uint64(0) {
-		return 4000
-	}
-	return n.StartingBackendPort
-}
-
-func (n *NetworkConfig) startingPostgresPort() uint64 {
-	if n.StartingPostgresPort == uint64(0) {
-		return 7432
-	}
-	return n.StartingPostgresPort
 }
 
 func (n *ChainConfig) dockerRepo() string {

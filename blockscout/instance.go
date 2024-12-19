@@ -85,6 +85,7 @@ func (i *Instance) Stopped() bool {
 }
 
 func (i *Instance) ConfigAsString() string {
+	// TODO: prettify this
 	var b strings.Builder
 	fmt.Fprintf(&b, "* Chain: %v\n", i.config.Name)
 	fmt.Fprintf(&b, "         Frontend:  http://127.0.0.1:%v\n", i.config.FrontendPort)
@@ -92,6 +93,8 @@ func (i *Instance) ConfigAsString() string {
 	fmt.Fprintf(&b, "         DB:        http://127.0.0.1:%v\n", i.config.PostgresPort)
 	fmt.Fprintf(&b, "         Workspace: %v\n", i.workspace)
 	fmt.Fprintf(&b, "         Logs:	    %v\n", path.Join(i.workspace, "logs"))
+	fmt.Fprintf(&b, "         First block: %v\n", i.config.FirstBlock)
+	fmt.Fprintf(&b, "         RPC: %v\n", i.config.RPCUrl)
 
 	if i.config.OPConfig != nil {
 		fmt.Fprintf(&b, "         Optimism L1 RPC: %v\n", i.config.OPConfig.L1RPCUrl)
@@ -208,8 +211,8 @@ func (i *Instance) frontendEnvs() map[string]string {
 
 	if i.config.OPConfig != nil {
 		envs["NEXT_PUBLIC_ROLLUP_TYPE"] = "optimistic"
-		// TODO: Fix me
-		envs["NEXT_PUBLIC_ROLLUP_L1_BASE_URL"] = "http://host.docker.internal:8545"
+		envs["NEXT_PUBLIC_ROLLUP_L1_BASE_URL"] = i.config.OPConfig.L1BlockscoutURL
+		// TODO: what is the correct value here?
 		envs["NEXT_PUBLIC_ROLLUP_L2_WITHDRAWAL_URL"] = "https://app.optimism.io/bridge/withdraw"
 	}
 
