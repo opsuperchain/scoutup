@@ -1,10 +1,10 @@
 package blockscout
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -129,12 +129,8 @@ func (i *Instance) runDockerCompose(ctx context.Context) error {
 	}
 
 	go func() {
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			txt := scanner.Text()
-			if _, err := fmt.Fprintln(logFile, txt); err != nil {
-				i.log.Warn("err piping stdout to log file", "err", err)
-			}
+		if _, err := io.Copy(logFile, stdout); err != nil {
+			i.log.Warn("err piping stderr to log file", "err", err)
 		}
 	}()
 
@@ -144,12 +140,8 @@ func (i *Instance) runDockerCompose(ctx context.Context) error {
 	}
 
 	go func() {
-		scanner := bufio.NewScanner(stderr)
-		for scanner.Scan() {
-			txt := scanner.Text()
-			if _, err := fmt.Fprintln(logFile, txt); err != nil {
-				i.log.Warn("err piping stdout to log file", "err", err)
-			}
+		if _, err := io.Copy(logFile, stderr); err != nil {
+			i.log.Warn("err piping stderr to log file", "err", err)
 		}
 	}()
 

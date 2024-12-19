@@ -82,19 +82,19 @@ func createInstanceWorkspace(globalWorkspace string) (string, error) {
 func cleanupInstanceWorkspace(dir string) error {
 	err := checkWorkspace(dir)
 	if err != nil {
-		return fmt.Errorf("Not a scoutup workspace: %w", err)
+		return fmt.Errorf("not a scoutup workspace: %w", err)
 	}
 
 	cmd := exec.Command("docker", "compose", "down")
 	cmd.Dir = dir
 	err = cmd.Run()
 	if err != nil {
-		return fmt.Errorf("Failed to remove docker containers: %w", err)
+		return fmt.Errorf("failed to remove docker containers: %w", err)
 	}
 
 	err = os.RemoveAll(dir)
 	if err != nil {
-		return fmt.Errorf("Failed to clean directory: %w", err)
+		return fmt.Errorf("failed to clean directory: %w", err)
 	}
 
 	return nil
@@ -105,11 +105,11 @@ func checkWorkspace(dir string) error {
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return fmt.Errorf("Failed to read directory: %w", err)
+		return fmt.Errorf("failed to read directory: %w", err)
 	}
 
 	if len(entries) != len(expected) {
-		return fmt.Errorf("Expected %d files but got %d", len(expected), len(entries))
+		return fmt.Errorf("expected %d files but got %d", len(expected), len(entries))
 	}
 
 	actual := []string{}
@@ -122,7 +122,7 @@ func checkWorkspace(dir string) error {
 
 	for i := range expected {
 		if expected[i] != actual[i] {
-			return fmt.Errorf("Expected %s but got %s", expected[i], actual[i])
+			return fmt.Errorf("expected %s but got %s", expected[i], actual[i])
 		}
 	}
 
