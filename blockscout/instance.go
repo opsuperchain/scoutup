@@ -94,7 +94,7 @@ func (i *Instance) ConfigAsString() string {
 	fmt.Fprintf(&b, "         Logs:	    %v\n", path.Join(i.workspace, "logs"))
 
 	if i.config.OPConfig != nil {
-		fmt.Fprintf(&b, "         Optimism L1 RPC: %v\n", i.config.OPConfig.L1RpcUrl)
+		fmt.Fprintf(&b, "         Optimism L1 RPC: %v\n", i.config.OPConfig.L1RPCUrl)
 		fmt.Fprintf(&b, "         Optimism L1 System Config Contract: %v\n", i.config.OPConfig.L1SystemConfigContract)
 	}
 	return b.String()
@@ -130,6 +130,21 @@ func (i *Instance) runDockerCompose(ctx context.Context) error {
 
 	go func() {
 		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			txt := scanner.Text()
+			if _, err := fmt.Fprintln(logFile, txt); err != nil {
+				i.log.Warn("err piping stdout to log file", "err", err)
+			}
+		}
+	}()
+
+	stderr, err := i.cmd.StderrPipe()
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
 			txt := scanner.Text()
 			if _, err := fmt.Fprintln(logFile, txt); err != nil {
@@ -178,14 +193,14 @@ func (i *Instance) dockerComposeEnvs() []string {
 
 func (i *Instance) backendEnvs() map[string]string {
 	envs := make(map[string]string)
-	envs["ETHEREUM_JSONRPC_HTTP_URL"] = i.config.RpcUrl
-	envs["ETHEREUM_JSONRPC_TRACE_URL"] = i.config.RpcUrl
+	envs["ETHEREUM_JSONRPC_HTTP_URL"] = i.config.RPCUrl
+	envs["ETHEREUM_JSONRPC_TRACE_URL"] = i.config.RPCUrl
 	envs["SUBNETWORK"] = i.config.Name
 	envs["FIRST_BLOCK"] = fmt.Sprintf("%d", i.config.FirstBlock)
 	envs["DATABASE_URL"] = fmt.Sprintf(
 		"postgresql://blockscout:ceWb1MeLBEeOIfk65gU8EjF8@host.docker.internal:%v/blockscout", i.config.PostgresPort)
 	if i.config.OPConfig != nil {
-		envs["INDEXER_OPTIMISM_L1_RPC"] = i.config.OPConfig.L1RpcUrl
+		envs["INDEXER_OPTIMISM_L1_RPC"] = i.config.OPConfig.L1RPCUrl
 		envs["INDEXER_OPTIMISM_L1_SYSTEM_CONFIG_CONTRACT"] = i.config.OPConfig.L1SystemConfigContract
 		envs["INDEXER_OPTIMISM_L2_BATCH_GENESIS_BLOCK_NUMBER"] = "0"
 		envs["INDEXER_OPTIMISM_L2_HOLOCENE_TIMESTAMP"] = "0"

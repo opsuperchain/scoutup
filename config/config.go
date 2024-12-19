@@ -1,13 +1,13 @@
 package config
 
 type OPConfig struct {
-	L1RpcUrl               string
+	L1RPCUrl               string
 	L1SystemConfigContract string
 }
 
 type ChainConfig struct {
 	Name       string
-	RpcUrl     string
+	RPCUrl     string
 	FirstBlock uint64
 	OPConfig   *OPConfig
 }
