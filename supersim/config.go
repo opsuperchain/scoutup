@@ -3,7 +3,7 @@ package supersim
 import (
 	"fmt"
 
-	"github.com/AllFi/scoutup/config"
+	"github.com/blockscout/scoutup/config"
 	ssconfig "github.com/ethereum-optimism/supersim/config"
 	"github.com/ethereum/go-ethereum/rpc"
 )

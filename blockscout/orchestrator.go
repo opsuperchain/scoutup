@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/AllFi/scoutup/config"
+	"github.com/blockscout/scoutup/config"
 	"github.com/ethereum/go-ethereum/log"
 )
 

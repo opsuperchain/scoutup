@@ -1,4 +1,4 @@
-module github.com/AllFi/scoutup
+module github.com/blockscout/scoutup
 
 go 1.23.4
 

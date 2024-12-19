@@ -12,8 +12,8 @@ import (
 	"sync/atomic"
 	"syscall"
 
-	"github.com/AllFi/scoutup/config"
-	"github.com/AllFi/scoutup/utils"
+	"github.com/blockscout/scoutup/config"
+	"github.com/blockscout/scoutup/utils"
 	"github.com/ethereum/go-ethereum/log"
 )
 

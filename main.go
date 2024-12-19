@@ -7,8 +7,8 @@ import (
 	"context"
 	"os"
 
-	"github.com/AllFi/scoutup/blockscout"
-	"github.com/AllFi/scoutup/supersim"
+	"github.com/blockscout/scoutup/blockscout"
+	"github.com/blockscout/scoutup/supersim"
 	"github.com/ethereum-optimism/optimism/op-service/cliapp"
 	"github.com/ethereum-optimism/optimism/op-service/ctxinterrupt"
 	oplog "github.com/ethereum-optimism/optimism/op-service/log"
