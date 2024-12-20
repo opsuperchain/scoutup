@@ -12,8 +12,7 @@ import (
 type Orchestrator struct {
 	instances []*Instance
 
-	log      log.Logger
-	closeApp context.CancelCauseFunc
+	log log.Logger
 }
 
 func NewOrchestrator(log log.Logger, closeApp context.CancelCauseFunc, configs []*config.BlockscoutConfig) (*Orchestrator, error) {
@@ -30,7 +29,7 @@ func NewOrchestrator(log log.Logger, closeApp context.CancelCauseFunc, configs [
 		}
 		instances = append(instances, instance)
 	}
-	return &Orchestrator{instances: instances, log: log, closeApp: closeApp}, nil
+	return &Orchestrator{instances: instances, log: log}, nil
 }
 
 func (o *Orchestrator) Start(ctx context.Context) error {

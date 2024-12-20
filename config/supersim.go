@@ -10,7 +10,7 @@ import (
 func PrepareSupersimConfig(admingRPCUrl string) (*NetworkConfig, error) {
 	sc, err := fetchSupersimConfig(admingRPCUrl)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot fetch supersim config: %w", err)
 	}
 
 	l1Config := &ChainConfig{

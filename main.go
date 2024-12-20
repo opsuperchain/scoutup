@@ -24,6 +24,8 @@ func main() {
 	app.Action = cliapp.LifecycleCmd(ScoutupMain)
 	app.Flags = config.BaseCLIFlags()
 
+	oplog.SetupDefaults()
+
 	//Subcommands
 	app.Commands = []*cli.Command{
 		{
@@ -40,11 +42,14 @@ func main() {
 }
 
 func ScoutupMain(ctx *cli.Context, closeApp context.CancelCauseFunc) (cliapp.Lifecycle, error) {
+	log := oplog.NewLogger(oplog.AppOut(ctx), oplog.DefaultCLIConfig())
+
 	var networkConfig *config.NetworkConfig
 	if ctx.Bool(config.Supersim) {
 		var err error
 		networkConfig, err = config.PrepareSupersimConfig(ctx.String(config.SupersimAdminRpc))
 		if err != nil {
+			log.Crit("Failed to prepare supersim config", "err", err)
 			return nil, err
 		}
 	} else {
@@ -54,7 +59,6 @@ func ScoutupMain(ctx *cli.Context, closeApp context.CancelCauseFunc) (cliapp.Lif
 	networkConfig.StartingBackendPort = ctx.Uint64(config.StartingBackendPort)
 	networkConfig.StartingPostgresPort = ctx.Uint64(config.StartingPostgresPort)
 
-	log := oplog.NewLogger(oplog.AppOut(ctx), oplog.DefaultCLIConfig())
 	return blockscout.NewOrchestrator(log, closeApp, networkConfig.GetBlockscoutConfigs())
 }
 
