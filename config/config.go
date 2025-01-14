@@ -1,19 +1,10 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
 
-type OPConfig struct {
-	L1RPCUrl               string
-	L1SystemConfigContract string
-	L1BlockscoutURL        string
-}
-
-type ChainConfig struct {
-	Name       string
-	RPCUrl     string
-	FirstBlock uint64
-	OPConfig   *OPConfig
-}
+	"github.com/blockscout/scoutup/utils"
+)
 
 type InstanceConfig struct {
 	DockerRepo   string
@@ -27,51 +18,47 @@ type BlockscoutConfig struct {
 	*InstanceConfig
 }
 
-type NetworkConfig struct {
-	Chains               []*ChainConfig
-	StartingFrontendPort uint64
-	StartingBackendPort  uint64
-	StartingPostgresPort uint64
+func (b *BlockscoutConfig) DockerComposeEnvs() []string {
+	return []string{
+		fmt.Sprintf("DOCKER_REPO=%s", b.DockerRepo),
+		fmt.Sprintf("FRONTEND_PORT=%d", b.FrontendPort),
+		fmt.Sprintf("BACKEND_PORT=%d", b.BackendPort),
+		fmt.Sprintf("POSTGRES_PORT=%d", b.PostgresPort),
+		fmt.Sprintf("DB_CONTAINER_NAME=%s", utils.NameToContainerName("db", b.Name)),
+		fmt.Sprintf("BACKEND_CONTAINER_NAME=%s", utils.NameToContainerName("backend", b.Name)),
+		fmt.Sprintf("FRONTEND_CONTAINER_NAME=%s", utils.NameToContainerName("frontend", b.Name)),
+	}
 }
 
-func (n *NetworkConfig) GetBlockscoutConfigs() []*BlockscoutConfig {
-	frontendPort := n.StartingFrontendPort
-	backendPort := n.StartingBackendPort
-	postgresPort := n.StartingPostgresPort
-
-	configs := []*BlockscoutConfig{}
-	for _, chain := range n.Chains {
-		config := &BlockscoutConfig{
-			ChainConfig: chain,
-			InstanceConfig: &InstanceConfig{
-				FrontendPort: frontendPort,
-				BackendPort:  backendPort,
-				PostgresPort: postgresPort,
-				DockerRepo:   chain.dockerRepo(),
-			},
-		}
-
-		if config.OPConfig != nil {
-			// TODO: refactor this later
-			for _, bs := range configs {
-				if bs.RPCUrl == config.OPConfig.L1RPCUrl {
-					config.OPConfig.L1BlockscoutURL = fmt.Sprintf("http://host.docker.internal:%v", bs.FrontendPort)
-					break
-				}
-			}
-		}
-
-		configs = append(configs, config)
-		frontendPort++
-		backendPort++
-		postgresPort++
+func (b *BlockscoutConfig) BackendEnvs() map[string]string {
+	envs := make(map[string]string)
+	envs["ETHEREUM_JSONRPC_HTTP_URL"] = b.RPCUrl
+	envs["ETHEREUM_JSONRPC_TRACE_URL"] = b.RPCUrl
+	envs["SUBNETWORK"] = b.Name
+	envs["FIRST_BLOCK"] = fmt.Sprintf("%d", b.FirstBlock)
+	envs["DATABASE_URL"] = fmt.Sprintf(
+		"postgresql://blockscout:ceWb1MeLBEeOIfk65gU8EjF8@host.docker.internal:%v/blockscout", b.PostgresPort)
+	if b.OPConfig != nil {
+		envs["INDEXER_OPTIMISM_L1_RPC"] = b.OPConfig.L1RPCUrl
+		envs["INDEXER_OPTIMISM_L1_SYSTEM_CONFIG_CONTRACT"] = b.OPConfig.L1SystemConfigContract
+		envs["INDEXER_OPTIMISM_L2_BATCH_GENESIS_BLOCK_NUMBER"] = "0"
+		envs["INDEXER_OPTIMISM_L2_HOLOCENE_TIMESTAMP"] = "0"
 	}
-	return configs
+	return envs
 }
 
-func (n *ChainConfig) dockerRepo() string {
-	if n.OPConfig != nil {
-		return "blockscout-optimism"
+func (b *BlockscoutConfig) FrontendEnvs() map[string]string {
+	envs := make(map[string]string)
+	envs["NEXT_PUBLIC_API_PORT"] = fmt.Sprintf("%d", b.BackendPort)
+	envs["NEXT_PUBLIC_NETWORK_NAME"] = b.Name
+	envs["NEXT_PUBLIC_NETWORK_SHORT_NAME"] = b.Name
+
+	if b.OPConfig != nil {
+		envs["NEXT_PUBLIC_ROLLUP_TYPE"] = "optimistic"
+		envs["NEXT_PUBLIC_ROLLUP_L1_BASE_URL"] = b.OPConfig.L1BlockscoutURL
+		// TODO: what is the correct value here?
+		envs["NEXT_PUBLIC_ROLLUP_L2_WITHDRAWAL_URL"] = "https://app.optimism.io/bridge/withdraw"
 	}
-	return "blockscout"
+
+	return envs
 }

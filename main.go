@@ -59,7 +59,7 @@ func ScoutupMain(ctx *cli.Context, closeApp context.CancelCauseFunc) (cliapp.Lif
 	networkConfig.StartingBackendPort = ctx.Uint64(config.StartingBackendPort)
 	networkConfig.StartingPostgresPort = ctx.Uint64(config.StartingPostgresPort)
 
-	return blockscout.NewOrchestrator(log, closeApp, networkConfig.GetBlockscoutConfigs())
+	return blockscout.NewOrchestrator(log, closeApp, networkConfig.PrepareBlockscoutConfigs())
 }
 
 func ScoutupClean(ctx *cli.Context) error {

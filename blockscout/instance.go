@@ -79,11 +79,6 @@ func (i *Instance) Stop(_ context.Context) error {
 	return nil
 }
 
-// no-op dead code in the cliapp lifecycle
-func (i *Instance) Stopped() bool {
-	return false
-}
-
 func (i *Instance) ConfigAsString() string {
 	// TODO: prettify this
 	var b strings.Builder
@@ -104,14 +99,14 @@ func (i *Instance) ConfigAsString() string {
 }
 
 func (i *Instance) configureBlockscout() error {
-	utils.PatchDotEnv(path.Join(i.workspace, "common-blockscout.env"), i.backendEnvs())
-	utils.PatchDotEnv(path.Join(i.workspace, "common-frontend.env"), i.frontendEnvs())
+	utils.PatchDotEnv(path.Join(i.workspace, "common-blockscout.env"), i.config.BackendEnvs())
+	utils.PatchDotEnv(path.Join(i.workspace, "common-frontend.env"), i.config.FrontendEnvs())
 	return nil
 }
 
 func (i *Instance) runDockerCompose(ctx context.Context) error {
 	i.cmd = exec.CommandContext(i.resourceCtx, "docker", "compose", "up")
-	i.cmd.Env = append(os.Environ(), i.dockerComposeEnvs()...)
+	i.cmd.Env = append(os.Environ(), i.config.DockerComposeEnvs()...)
 	i.cmd.Cancel = func() error {
 		return i.cmd.Process.Signal(syscall.SIGTERM)
 	}
@@ -172,49 +167,4 @@ func (i *Instance) runDockerCompose(ctx context.Context) error {
 	}()
 
 	return nil
-}
-
-func (i *Instance) dockerComposeEnvs() []string {
-	return []string{
-		fmt.Sprintf("DOCKER_REPO=%s", i.config.DockerRepo),
-		fmt.Sprintf("FRONTEND_PORT=%d", i.config.FrontendPort),
-		fmt.Sprintf("BACKEND_PORT=%d", i.config.BackendPort),
-		fmt.Sprintf("POSTGRES_PORT=%d", i.config.PostgresPort),
-		fmt.Sprintf("DB_CONTAINER_NAME=%s", utils.NameToContainerName("db", i.config.Name)),
-		fmt.Sprintf("BACKEND_CONTAINER_NAME=%s", utils.NameToContainerName("backend", i.config.Name)),
-		fmt.Sprintf("FRONTEND_CONTAINER_NAME=%s", utils.NameToContainerName("frontend", i.config.Name)),
-	}
-}
-
-func (i *Instance) backendEnvs() map[string]string {
-	envs := make(map[string]string)
-	envs["ETHEREUM_JSONRPC_HTTP_URL"] = i.config.RPCUrl
-	envs["ETHEREUM_JSONRPC_TRACE_URL"] = i.config.RPCUrl
-	envs["SUBNETWORK"] = i.config.Name
-	envs["FIRST_BLOCK"] = fmt.Sprintf("%d", i.config.FirstBlock)
-	envs["DATABASE_URL"] = fmt.Sprintf(
-		"postgresql://blockscout:ceWb1MeLBEeOIfk65gU8EjF8@host.docker.internal:%v/blockscout", i.config.PostgresPort)
-	if i.config.OPConfig != nil {
-		envs["INDEXER_OPTIMISM_L1_RPC"] = i.config.OPConfig.L1RPCUrl
-		envs["INDEXER_OPTIMISM_L1_SYSTEM_CONFIG_CONTRACT"] = i.config.OPConfig.L1SystemConfigContract
-		envs["INDEXER_OPTIMISM_L2_BATCH_GENESIS_BLOCK_NUMBER"] = "0"
-		envs["INDEXER_OPTIMISM_L2_HOLOCENE_TIMESTAMP"] = "0"
-	}
-	return envs
-}
-
-func (i *Instance) frontendEnvs() map[string]string {
-	envs := make(map[string]string)
-	envs["NEXT_PUBLIC_API_PORT"] = fmt.Sprintf("%d", i.config.BackendPort)
-	envs["NEXT_PUBLIC_NETWORK_NAME"] = i.config.Name
-	envs["NEXT_PUBLIC_NETWORK_SHORT_NAME"] = i.config.Name
-
-	if i.config.OPConfig != nil {
-		envs["NEXT_PUBLIC_ROLLUP_TYPE"] = "optimistic"
-		envs["NEXT_PUBLIC_ROLLUP_L1_BASE_URL"] = i.config.OPConfig.L1BlockscoutURL
-		// TODO: what is the correct value here?
-		envs["NEXT_PUBLIC_ROLLUP_L2_WITHDRAWAL_URL"] = "https://app.optimism.io/bridge/withdraw"
-	}
-
-	return envs
 }
