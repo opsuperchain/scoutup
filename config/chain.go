@@ -10,8 +10,9 @@ type ChainConfig struct {
 	Name        string
 	RPCUrl      string
 	FirstBlock  uint64
-	OPConfig    *OPConfig
+	ChainID     uint64
 	GenesisJSON []byte
+	OPConfig    *OPConfig
 }
 
 func (n *ChainConfig) dockerRepo() string {
@@ -19,4 +20,11 @@ func (n *ChainConfig) dockerRepo() string {
 		return "blockscout-optimism"
 	}
 	return "blockscout"
+}
+
+func (n *ChainConfig) dockerTag() string {
+	if n.OPConfig != nil {
+		return "7.0.0-postrelease-344276dd"
+	}
+	return "7.0.0"
 }

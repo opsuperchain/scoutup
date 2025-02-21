@@ -23,6 +23,7 @@ func (n *NetworkConfig) PrepareBlockscoutConfigs() []*BlockscoutConfig {
 				BackendPort:  backendPort,
 				PostgresPort: postgresPort,
 				DockerRepo:   chain.dockerRepo(),
+				DockerTag:    chain.dockerTag(),
 			},
 		}
 
@@ -32,6 +33,14 @@ func (n *NetworkConfig) PrepareBlockscoutConfigs() []*BlockscoutConfig {
 				if bs.RPCUrl == config.OPConfig.L1RPCUrl {
 					config.OPConfig.L1BlockscoutURL = fmt.Sprintf("http://host.docker.internal:%v", bs.FrontendPort)
 					break
+				}
+			}
+
+			config.OtherL2InstanceConfigs = make(map[uint64]*InstanceConfig)
+			for _, bs := range configs {
+				if bs.OPConfig != nil {
+					config.OtherL2InstanceConfigs[bs.ChainID] = bs.InstanceConfig
+					bs.OtherL2InstanceConfigs[config.ChainID] = config.InstanceConfig
 				}
 			}
 		}
