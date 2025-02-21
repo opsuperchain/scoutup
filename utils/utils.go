@@ -1,6 +1,10 @@
 package utils
 
 import (
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"strings"
 
@@ -37,4 +41,18 @@ func NameToContainerName(prefix string, name string) string {
 	container_name := strings.ToLower(name)
 	container_name = strings.ReplaceAll(container_name, " ", "-")
 	return prefix + "-" + container_name
+}
+
+func MakeGetRequest(url string) ([]byte, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.New(fmt.Sprintf("invalid response status code: %s", resp.Status))
+	}
+
+	return io.ReadAll(resp.Body)
 }
