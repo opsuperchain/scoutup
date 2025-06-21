@@ -87,9 +87,9 @@ func (i *Instance) ConfigAsString() string {
 	// TODO: prettify this
 	var b strings.Builder
 	fmt.Fprintf(&b, "* Chain: %v\n", i.config.Name)
-	fmt.Fprintf(&b, "         Frontend:  http://127.0.0.1:%v\n", i.config.FrontendPort)
-	fmt.Fprintf(&b, "         Backend:   http://127.0.0.1:%v\n", i.config.BackendPort)
-	fmt.Fprintf(&b, "         DB:        http://127.0.0.1:%v\n", i.config.PostgresPort)
+	fmt.Fprintf(&b, "         Frontend:  http://0.0.0.0:%v\n", i.config.FrontendPort)
+	fmt.Fprintf(&b, "         Backend:   http://0.0.0.0:%v\n", i.config.BackendPort)
+	fmt.Fprintf(&b, "         DB:        http://0.0.0.0:%v\n", i.config.PostgresPort)
 	fmt.Fprintf(&b, "         Workspace: %v\n", i.workspace)
 	fmt.Fprintf(&b, "         Logs:	    %v\n", path.Join(i.workspace, "logs"))
 	fmt.Fprintf(&b, "         First block: %v\n", i.config.FirstBlock)
@@ -187,7 +187,7 @@ func (i *Instance) verifyL2InteropContracts() {
 		"SuperchainTokenBridge":      common.HexToAddress("0x4200000000000000000000000000000000000028"),
 	}
 
-	backendURL := fmt.Sprintf("http://127.0.0.1:%d", i.config.BackendPort)
+	backendURL := fmt.Sprintf("http://0.0.0.0:%d", i.config.BackendPort)
 
 	// Wait for the backend instance to start
 	for !isHealthy(backendURL) {

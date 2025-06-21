@@ -88,7 +88,7 @@ func (b *BlockscoutConfig) buildChainscoutFallbackMapValue() string {
 	for chainID, config := range b.OtherL2InstanceConfigs {
 		chainFallbackMap := make(map[string]string)
 		chainFallbackMap["api"] = fmt.Sprintf("http://host.docker.internal:%v", config.BackendPort)
-		chainFallbackMap["ui"] = fmt.Sprintf("http://127.0.0.1:%v", config.FrontendPort)
+		chainFallbackMap["ui"] = fmt.Sprintf("http://0.0.0.0:%v", config.FrontendPort)
 		chainscoutFallbackMap[fmt.Sprintf("%v", chainID)] = chainFallbackMap
 	}
 	jsonBytes, _ := json.Marshal(chainscoutFallbackMap)
