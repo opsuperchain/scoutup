@@ -25,7 +25,7 @@ func BaseCLIFlags() []cli.Flag {
 		},
 		&cli.StringFlag{
 			Name:  SupersimAdminRpc,
-			Value: "http://localhost:8420",
+			Value: "http://127.0.0.1:8420",
 			Usage: "Admin RPC URL for supersim",
 		},
 		&cli.Uint64Flag{

@@ -37,7 +37,7 @@ func PrepareSupersimConfig(admingRPCUrl string) (*NetworkConfig, error) {
 
 		l2Config := &ChainConfig{
 			Name:    chain.Name,
-			RPCUrl:  fmt.Sprintf("http://host.docker.internal:%d", port),
+			RPCUrl:  fmt.Sprintf("http://0.0.0.0:%d", port),
 			ChainID: chain.ChainID,
 			OPConfig: &OPConfig{
 				L1RPCUrl:               fmt.Sprintf("http://host.docker.internal:%d", sc.L1Config.Port),
